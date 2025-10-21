@@ -1,10 +1,10 @@
 # Monthly Commentary — 2025-09
 
 ## Government Bond Yields (10-Year)
-- **US 10y:** 0.41% (fell -3.29% MoM; from 0.43%)
+- **US 10y:** n/a% (was little changed n/a% MoM; from n/a%)
 - **AU 10y:** n/a% (was little changed n/a% MoM; from n/a%)
 
-US 10-year yields fell to 0.41%, a -3.29% move on the month, while Australian 10-year yields was little changed to n/a (n/a).
+US 10-year yields was little changed to n/a, a n/a move on the month, while Australian 10-year yields was little changed to n/a (n/a).
 
 ## Inflation (CPI YoY)
 - **US CPI YoY:** 2.94%
@@ -19,21 +19,21 @@ US CPI is running at 2.94%, while Australian CPI is at n/a.
 The Fed funds rate sits at 4.22%, compared with the RBA cash rate at n/a.
 
 ## Equities
-- **S&P 500 (MoM):** n/a%
+- **S&P 500 (MoM):** 3.53%
 - **ASX 200 (MoM):** n/a%
 
-The S&amp;P 500 returned n/a over the month, while the ASX 200 delivered n/a.
+The S&amp;P 500 returned 3.53% over the month, while the ASX 200 delivered n/a.
 
 ## FX
-- **AUDUSD (MoM):** n/a%
-- **DXY proxy (UUP) (MoM):** n/a%
+- **AUDUSD (MoM):** 1.05%
+- **DXY proxy (UUP) (MoM):** -0.03%
 
-AUD/USD moved n/a in monthly terms and the UUP dollar index proxy returned n/a.
+AUD/USD moved 1.05% in monthly terms and the UUP dollar index proxy returned -0.03%.
 
 ## Commodities
 - **Gold (MoM):** n/a%
-- **WTI (MoM):** n/a%
-- **Brent (MoM):** n/a%
+- **WTI (MoM):** -1.85%
+- **Brent (MoM):** 1.02%
 - **Iron Ore (MoM):** n/a
 
-Gold returned n/a, WTI crude n/a, and Brent n/a. Iron ore was unavailable.
+Gold returned n/a, WTI crude -1.85%, and Brent 1.02%. Iron ore was unavailable.

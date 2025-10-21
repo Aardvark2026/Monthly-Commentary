@@ -13,6 +13,19 @@ LOGGER = logging.getLogger(__name__)
 
 
 def au_cash_rate_series():
+    import os
+    manual_path = os.path.join(os.path.dirname(__file__), '../../data/rba_cash_manual.csv')
+    if os.path.exists(manual_path):
+        try:
+            df = pd.read_csv(manual_path)
+            date_col = df.columns[0]
+            val_col = df.columns[1]
+            s = pd.Series(df[val_col].values, index=pd.to_datetime(df[date_col]), name="RBACASH")
+            s = s.dropna()
+            cache_series(s, "rba_cash_manual")
+            return s
+        except Exception as exc:
+            LOGGER.warning("Manual RBA cash CSV failed: %s", exc)
     try:
         r = requests.get(RBA_CASH_URL, timeout=30)
         r.raise_for_status()
@@ -38,6 +51,19 @@ def au_government_10y_series():
     column matching and returns ``None`` if parsing fails.
     """
 
+    import os
+    manual_path = os.path.join(os.path.dirname(__file__), '../../data/au_10y_manual.csv')
+    if os.path.exists(manual_path):
+        try:
+            df = pd.read_csv(manual_path)
+            date_col = df.columns[0]
+            val_col = df.columns[1]
+            s = pd.Series(df[val_col].values, index=pd.to_datetime(df[date_col]), name="AU10Y")
+            s = s.dropna()
+            cache_series(s, "au_10y_manual")
+            return s
+        except Exception as exc:
+            LOGGER.warning("Manual AU 10y CSV failed: %s", exc)
     try:
         r = requests.get(RBA_10Y_URL, timeout=45)
         r.raise_for_status()

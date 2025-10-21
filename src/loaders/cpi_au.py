@@ -14,6 +14,20 @@ LOGGER = logging.getLogger(__name__)
 
 
 def au_cpi_yoy():
+    import os
+    manual_path = os.path.join(os.path.dirname(__file__), '../../data/au_cpi_manual.csv')
+    if os.path.exists(manual_path):
+        try:
+            df = pd.read_csv(manual_path)
+            date_col = df.columns[0]
+            val_col = df.columns[1]
+            s = pd.Series(df[val_col].values, index=pd.to_datetime(df[date_col]), name="AUCPI_MANUAL")
+            yoy = (s / s.shift(4) - 1.0) * 100.0
+            yoy = yoy.rename("AUCPI_YoY%_MANUAL").dropna().round(2).astype(float)
+            cache_series(yoy, "aucpi_manual_yoy")
+            return yoy
+        except Exception as exc:
+            LOGGER.warning("Manual AU CPI CSV failed: %s", exc)
     try:
         r = requests.get(ABS_URL, timeout=45)
         r.raise_for_status()

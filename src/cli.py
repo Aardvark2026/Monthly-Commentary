@@ -125,6 +125,7 @@ def run(month: str, markets: str, outputs: str, lookback: int = DEFAULT_LOOKBACK
     # Load rates and equities
     market_data: dict[str, dict[str, pd.Series]] = {}
     from src.loaders.yahoo import LoaderEmptyError
+    from src.loaders.asx_manual import asx200_manual_series
     for market in market_configs:
         code = market["code"]
         ten_year_ticker = market.get("ten_year_ticker")
@@ -156,9 +157,18 @@ def run(month: str, markets: str, outputs: str, lookback: int = DEFAULT_LOOKBACK
         equity_series = None
         try:
             equity_series = fetch_series(equity_ticker, window, lookback_months)
+            if code == "au" and equity_series.dropna().empty:
+                raise LoaderEmptyError("Yahoo ASX 200 empty, try manual fallback")
         except LoaderEmptyError:
-            LOGGER.warning(f"Equity series {equity_ticker} failed; marking as None")
-            equity_series = pd.Series(dtype=float)
+            if code == "au":
+                LOGGER.info("Yahoo ASX 200 unavailable; attempting manual CSV fallback")
+                equity_series = to_series(asx200_manual_series())
+                if equity_series is None or equity_series.dropna().empty:
+                    LOGGER.warning("Manual ASX 200 fallback failed; marking ASX 200 as None")
+                    equity_series = pd.Series(dtype=float)
+            else:
+                LOGGER.warning(f"Equity series {equity_ticker} failed; marking as None")
+                equity_series = pd.Series(dtype=float)
         market_data[code] = {
             "ten_year": to_series(ten_year_series),
             "equity": to_series(equity_series),
@@ -169,34 +179,75 @@ def run(month: str, markets: str, outputs: str, lookback: int = DEFAULT_LOOKBACK
     fx_cfg = config.get("fx", {})
     commodities_cfg = config.get("commodities", {})
 
+    from src.loaders.fred import fred_series
     # FX
     try:
         audusd_series = to_series(fetch_series(fx_cfg.get("audusd"), window, lookback_months))
+        if audusd_series.empty:
+            raise LoaderEmptyError()
+        LOGGER.info("AUDUSD loaded from Yahoo")
     except LoaderEmptyError:
-        LOGGER.warning("AUDUSD series failed; marking as None")
-        audusd_series = pd.Series(dtype=float)
+        try:
+            # FRED AUD/USD: DEXUSAL (daily)
+            audusd_series = to_series(fred_series("DEXUSAL"))
+            LOGGER.info("AUDUSD loaded from FRED (DEXUSAL)")
+        except Exception as exc:
+            LOGGER.warning(f"AUDUSD FRED fallback failed: {exc}; marking as None")
+            audusd_series = pd.Series(dtype=float)
     try:
         dxy_series = to_series(fetch_series(fx_cfg.get("dxy_proxy"), window, lookback_months))
+        if dxy_series.empty:
+            raise LoaderEmptyError()
+        LOGGER.info("UUP/DXY loaded from Yahoo")
     except LoaderEmptyError:
-        LOGGER.warning("UUP/DXY series failed; marking as None")
-        dxy_series = pd.Series(dtype=float)
+        try:
+            # FRED DXY: DTWEXBGS (Broad Dollar Index)
+            dxy_series = to_series(fred_series("DTWEXBGS"))
+            LOGGER.info("DXY loaded from FRED (DTWEXBGS)")
+        except Exception as exc:
+            LOGGER.warning(f"DXY FRED fallback failed: {exc}; marking as None")
+            dxy_series = pd.Series(dtype=float)
 
     # Commodities
     try:
         gold_series = to_series(commods.load_gold(window, lookback_months))
+        if gold_series.empty:
+            raise LoaderEmptyError()
+        LOGGER.info("Gold loaded from Yahoo")
     except LoaderEmptyError:
-        LOGGER.warning("Gold series failed; marking as None")
-        gold_series = pd.Series(dtype=float)
+        try:
+            # FRED Gold: GOLDAMGBD228NLBM (London Bullion Market, USD/oz)
+            gold_series = to_series(fred_series("GOLDAMGBD228NLBM"))
+            LOGGER.info("Gold loaded from FRED (GOLDAMGBD228NLBM)")
+        except Exception as exc:
+            LOGGER.warning(f"Gold FRED fallback failed: {exc}; marking as None")
+            gold_series = pd.Series(dtype=float)
     try:
         wti_series = to_series(commods.load_wti(window, lookback_months))
+        if wti_series.empty:
+            raise LoaderEmptyError()
+        LOGGER.info("WTI loaded from Yahoo")
     except LoaderEmptyError:
-        LOGGER.warning("WTI series failed; marking as None")
-        wti_series = pd.Series(dtype=float)
+        try:
+            # FRED WTI: DCOILWTICO (USD/barrel)
+            wti_series = to_series(fred_series("DCOILWTICO"))
+            LOGGER.info("WTI loaded from FRED (DCOILWTICO)")
+        except Exception as exc:
+            LOGGER.warning(f"WTI FRED fallback failed: {exc}; marking as None")
+            wti_series = pd.Series(dtype=float)
     try:
         brent_series = to_series(commods.load_brent(window, lookback_months))
+        if brent_series.empty:
+            raise LoaderEmptyError()
+        LOGGER.info("Brent loaded from Yahoo")
     except LoaderEmptyError:
-        LOGGER.warning("Brent series failed; marking as None")
-        brent_series = pd.Series(dtype=float)
+        try:
+            # FRED Brent: DCOILBRENTEU (USD/barrel)
+            brent_series = to_series(fred_series("DCOILBRENTEU"))
+            LOGGER.info("Brent loaded from FRED (DCOILBRENTEU)")
+        except Exception as exc:
+            LOGGER.warning(f"Brent FRED fallback failed: {exc}; marking as None")
+            brent_series = pd.Series(dtype=float)
     try:
         iron_series_raw = commods.load_iron_ore(
             window,
@@ -224,9 +275,18 @@ def run(month: str, markets: str, outputs: str, lookback: int = DEFAULT_LOOKBACK
     # Compute metrics
     us_rates = market_data.get("us", {})
     au_rates = market_data.get("au", {})
+    # S&P 500 fallback: FRED 'SP500' (daily close)
+    spx_series = us_rates.get("equity")
+    if spx_series is not None and spx_series.dropna().empty:
+        try:
+            spx_series = to_series(fred_series("SP500"))
+            LOGGER.info("S&P 500 loaded from FRED (SP500)")
+        except Exception as exc:
+            LOGGER.warning(f"S&P 500 FRED fallback failed: {exc}; marking as None")
+            spx_series = pd.Series(dtype=float)
     us_10y_prev, us_10y_end, us_10y_mom = _monthly_stats(us_rates.get("ten_year"), window)
     au_10y_prev, au_10y_end, au_10y_mom = _monthly_stats(au_rates.get("ten_year"), window)
-    spx_prev, spx_end, spx_mom = _monthly_stats(us_rates.get("equity"), window)
+    spx_prev, spx_end, spx_mom = _monthly_stats(spx_series, window)
     axjo_prev, axjo_end, axjo_mom = _monthly_stats(au_rates.get("equity"), window)
     audusd_prev, audusd_end, audusd_mom = _monthly_stats(audusd_series, window)
     dxy_prev, dxy_end, dxy_mom = _monthly_stats(dxy_series, window)
