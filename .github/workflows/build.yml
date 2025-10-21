@@ -22,7 +22,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run generator
-        run: python -m src.cli generate
+        run: python -m src.cli --month "${{ github.event.inputs.month || 'auto' }}" --outputs md,xlsx
 
       - name: Set REPORT_DIR
         run: |
