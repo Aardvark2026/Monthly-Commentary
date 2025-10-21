@@ -28,10 +28,14 @@ jobs:
         run: |
           echo "REPORT_DIR=$(ls -d reports/* | sort | tail -n 1)" >> $GITHUB_ENV
 
-      - name: Send email
+      - name: Map SMTP host to env
+        run: echo "SMTP_SERVER_HOST=${{ secrets.SMTP_SERVER }}" >> $GITHUB_ENV
+
+      - name: Send email (Gmail)
+        if: contains(env.SMTP_SERVER_HOST, 'gmail')
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: ${{ secrets.SMTP_SERVER }}
+          server_address: smtp.gmail.com
           server_port: ${{ secrets.SMTP_PORT }}
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
@@ -39,7 +43,25 @@ jobs:
           to: ${{ secrets.RECIPIENT_EMAIL }}
           subject: Monthly Commentary Report
           secure: false
-          nodemailerlog: true
+          html_body: |
+            <p>Hi team,</p><p>Attached are the monthly outputs.</p>
+            <p>Report path: <code>${{ env.REPORT_DIR }}</code></p>
+          attachments: |
+            ${{ env.REPORT_DIR }}/monthly_commentary.md
+            ${{ env.REPORT_DIR }}/dashboard.xlsx
+
+      - name: Send email (SendGrid)
+        if: contains(env.SMTP_SERVER_HOST, 'sendgrid')
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.sendgrid.net
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          from: ${{ secrets.FROM_EMAIL }}
+          to: ${{ secrets.RECIPIENT_EMAIL }}
+          subject: Monthly Commentary Report
+          secure: false
           html_body: |
             <p>Hi team,</p><p>Attached are the monthly outputs.</p>
             <p>Report path: <code>${{ env.REPORT_DIR }}</code></p>
