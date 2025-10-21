@@ -1,0 +1,44 @@
+# Monthly Commentary — {{ month }}
+
+## Government Bond Yields (10-Year)
+- **US 10y:** {{ us10y.last|round(2) }}% ({{ us10y.mom_pct|round(2) }}% m/m)
+- **AU 10y:** {{ au10y.last|round(2) }}% ({{ au10y.mom_pct|round(2) }}% m/m)
+
+{{ prose.bonds }}
+
+## Inflation (CPI YoY)
+- **US CPI YoY:** {{ cpi.us if cpi.us is not none else "Data not available" }}
+- **AU CPI YoY:** {{ cpi.au if cpi.au is not none else "Data not available" }}
+
+{{ prose.cpi }}
+
+## Policy
+- **Fed Funds:** {{ policy.fed if policy.fed is not none else "Data not available" }}
+- **RBA Cash Rate:** {{ policy.rba if policy.rba is not none else "Data not available" }}
+
+{{ prose.policy }}
+
+## Equities
+- **S&P 500 (MoM):** {{ equities.spx_mom if equities.spx_mom is not none else "Data not available" }}%
+- **ASX 200 (MoM):** {{ equities.asx_mom if equities.asx_mom is not none else "Data not available" }}%
+
+{{ prose.equities }}
+
+## FX
+- **AUDUSD (MoM):** {{ fx.audusd_mom if fx.audusd_mom is not none else "Data not available" }}%
+- **DXY (MoM):** {{ fx.dxy_mom if fx.dxy_mom is not none else "Data not available" }}%
+
+{{ prose.fx }}
+
+## Commodities
+- **Gold (MoM):** {{ commodities.gold_mom if commodities.gold_mom is not none else "Data not available" }}%
+- **WTI (MoM):** {{ commodities.wti_mom if commodities.wti_mom is not none else "Data not available" }}%
+- **Brent (MoM):** {{ commodities.brent_mom if commodities.brent_mom is not none else "Data not available" }}%
+- **Iron Ore (MoM):** {{ commodities.iron_ore_mom if commodities.iron_ore_mom is not none else "Data not available" }}%
+
+{{ prose.commodities }}
+
+*Charts:*  
+![10y](charts/tenors_10y.png)  
+![CPI](charts/cpi.png)  
+![MoM](charts/mom_bars.png)

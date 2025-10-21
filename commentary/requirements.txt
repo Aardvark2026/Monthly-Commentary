@@ -1,0 +1,7 @@
+pandas
+jinja2
+pydantic
+matplotlib
+numpy
+python-dateutil
+xlsxwriter
