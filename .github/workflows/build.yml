@@ -1,0 +1,44 @@
+---
+name: Build Monthly Commentary
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    # Run on the first day of each month at 00:00 UTC
+    - cron: '0 0 1 * *'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run generator
+        run: python -m src.cli generate
+
+      - name: Set REPORT_DIR
+        run: |
+          echo "REPORT_DIR=$(ls -d reports/* | sort | tail -n 1)" >> $GITHUB_ENV
+
+      - name: Send email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          from: ${{ secrets.FROM_EMAIL }}
+          to: ${{ secrets.RECIPIENT_EMAIL }}
+          subject: Monthly Commentary Report
+          message: Please find attached the latest monthly commentary report.
+          attachments: |
+            ${{ env.REPORT_DIR }}/monthly_commentary.md
+            ${{ env.REPORT_DIR }}/dashboard.xlsx
