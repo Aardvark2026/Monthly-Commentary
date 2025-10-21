@@ -124,18 +124,41 @@ def run(month: str, markets: str, outputs: str, lookback: int = DEFAULT_LOOKBACK
 
     # Load rates and equities
     market_data: dict[str, dict[str, pd.Series]] = {}
+    from src.loaders.yahoo import LoaderEmptyError
     for market in market_configs:
         code = market["code"]
         ten_year_ticker = market.get("ten_year_ticker")
         equity_ticker = market.get("equity_ticker")
-        ten_year_series = fetch_series(ten_year_ticker, window, lookback_months)
-        if code == "us":
-            ten_year_series = ten_year_series / 10.0
-            ten_year_series.name = "US10Y"
-        elif code == "au" and ten_year_series.dropna().empty:
-            LOGGER.info("Yahoo AU 10y unavailable; attempting RBA fallback")
-            ten_year_series = to_series(au_government_10y_series())
-        equity_series = fetch_series(equity_ticker, window, lookback_months)
+        ten_year_series = None
+        try:
+            ten_year_series = fetch_series(ten_year_ticker, window, lookback_months)
+            if code == "us":
+                ten_year_series = ten_year_series / 10.0
+                ten_year_series.name = "US10Y"
+            elif code == "au" and ten_year_series.dropna().empty:
+                raise LoaderEmptyError("Yahoo AU 10y empty, try RBA fallback")
+        except LoaderEmptyError:
+            if code == "au":
+                LOGGER.info("Yahoo AU 10y unavailable; attempting RBA fallback")
+                ten_year_series = to_series(au_government_10y_series())
+                if ten_year_series is None or ten_year_series.dropna().empty:
+                    LOGGER.warning("RBA AU 10y fallback failed; marking AU 10y as None")
+                    ten_year_series = pd.Series(dtype=float)
+            elif code == "us":
+                LOGGER.info("Yahoo US 10y unavailable; attempting FRED fallback")
+                try:
+                    ten_year_series = to_series(fred_series("GS10"))
+                    ten_year_series = ten_year_series / 10.0
+                    ten_year_series.name = "US10Y"
+                except Exception as exc:
+                    LOGGER.warning(f"FRED US 10y fallback failed: {exc}; marking US 10y as None")
+                    ten_year_series = pd.Series(dtype=float)
+        equity_series = None
+        try:
+            equity_series = fetch_series(equity_ticker, window, lookback_months)
+        except LoaderEmptyError:
+            LOGGER.warning(f"Equity series {equity_ticker} failed; marking as None")
+            equity_series = pd.Series(dtype=float)
         market_data[code] = {
             "ten_year": to_series(ten_year_series),
             "equity": to_series(equity_series),
@@ -146,21 +169,46 @@ def run(month: str, markets: str, outputs: str, lookback: int = DEFAULT_LOOKBACK
     fx_cfg = config.get("fx", {})
     commodities_cfg = config.get("commodities", {})
 
-    audusd_series = to_series(fetch_series(fx_cfg.get("audusd"), window, lookback_months))
-    dxy_series = to_series(fetch_series(fx_cfg.get("dxy_proxy"), window, lookback_months))
+    # FX
+    try:
+        audusd_series = to_series(fetch_series(fx_cfg.get("audusd"), window, lookback_months))
+    except LoaderEmptyError:
+        LOGGER.warning("AUDUSD series failed; marking as None")
+        audusd_series = pd.Series(dtype=float)
+    try:
+        dxy_series = to_series(fetch_series(fx_cfg.get("dxy_proxy"), window, lookback_months))
+    except LoaderEmptyError:
+        LOGGER.warning("UUP/DXY series failed; marking as None")
+        dxy_series = pd.Series(dtype=float)
 
-    gold_series = to_series(commods.load_gold(window, lookback_months))
-    wti_series = to_series(commods.load_wti(window, lookback_months))
-    brent_series = to_series(commods.load_brent(window, lookback_months))
-    iron_series = to_series(
-        commods.load_iron_ore(
+    # Commodities
+    try:
+        gold_series = to_series(commods.load_gold(window, lookback_months))
+    except LoaderEmptyError:
+        LOGGER.warning("Gold series failed; marking as None")
+        gold_series = pd.Series(dtype=float)
+    try:
+        wti_series = to_series(commods.load_wti(window, lookback_months))
+    except LoaderEmptyError:
+        LOGGER.warning("WTI series failed; marking as None")
+        wti_series = pd.Series(dtype=float)
+    try:
+        brent_series = to_series(commods.load_brent(window, lookback_months))
+    except LoaderEmptyError:
+        LOGGER.warning("Brent series failed; marking as None")
+        brent_series = pd.Series(dtype=float)
+    try:
+        iron_series_raw = commods.load_iron_ore(
             window,
             lookback_months,
             commodities_cfg.get("iron_ore_candidates", []),
             commodities_cfg.get("iron_ore_tradingeconomics_series"),
         )
-    )
-    if iron_series.empty:
+        iron_series = to_series(iron_series_raw) if iron_series_raw is not None else None
+        if iron_series is not None and iron_series.empty:
+            iron_series = None
+    except LoaderEmptyError:
+        LOGGER.warning("Iron ore series failed; marking as None")
         iron_series = None
 
     # CPI
@@ -198,7 +246,7 @@ def run(month: str, markets: str, outputs: str, lookback: int = DEFAULT_LOOKBACK
     fx_facts = f"AUDUSD {format_percent(audusd_mom)} MoM; UUP {format_percent(dxy_mom)} MoM."
     cpi_facts = f"US CPI YoY {format_percent(us_cpi_val)}; AU CPI YoY {format_percent(au_cpi_val)}."
     policy_facts = f"Fed funds {format_percent(fed_last)}; RBA cash {format_percent(rba_last)}."
-    cmdty_facts = f"Gold {format_percent(gold_mom)}; WTI {format_percent(wti_mom)}; Brent {format_percent(brent_mom)}; Iron ore {format_percent(iron_mom)}."
+    cmdty_facts = f"Gold {format_percent(gold_mom)}; WTI {format_percent(wti_mom)}; Brent {format_percent(brent_mom)}" + (f"; Iron ore {format_percent(iron_mom)}." if iron_mom is not None else ". Iron ore: n/a.")
 
     bond_para = _try_llm(prompts.BOND_PROMPT.format(facts=bond_facts), rules.bond_summary(us_10y_end, us_10y_mom, au_10y_end, au_10y_mom))
     equity_para = _try_llm(prompts.EQUITY_PROMPT.format(facts=equity_facts), rules.equity_summary(spx_mom, axjo_mom))
@@ -211,17 +259,17 @@ def run(month: str, markets: str, outputs: str, lookback: int = DEFAULT_LOOKBACK
         "month": window.label,
         "us_10y": SectionMetrics(us_10y_prev, us_10y_end, us_10y_mom),
         "au_10y": SectionMetrics(au_10y_prev, au_10y_end, au_10y_mom),
-        "us_cpi_yoy": format_percent(us_cpi_val),
-        "au_cpi_yoy": format_percent(au_cpi_val),
-        "fed_last": format_percent(fed_last),
-        "rba_last": format_percent(rba_last),
-        "spx_ret": format_percent(spx_mom),
-        "axjo_ret": format_percent(axjo_mom),
-        "audusd_ret": format_percent(audusd_mom),
-        "dxy_ret": format_percent(dxy_mom),
-        "gold_ret": format_percent(gold_mom),
-        "wti_ret": format_percent(wti_mom),
-        "brent_ret": format_percent(brent_mom),
+        "us_cpi_yoy": format_percent(us_cpi_val) if us_cpi_val is not None else "n/a",
+        "au_cpi_yoy": format_percent(au_cpi_val) if au_cpi_val is not None else "n/a",
+        "fed_last": format_percent(fed_last) if fed_last is not None else "n/a",
+        "rba_last": format_percent(rba_last) if rba_last is not None else "n/a",
+        "spx_ret": format_percent(spx_mom) if spx_mom is not None else "n/a",
+        "axjo_ret": format_percent(axjo_mom) if axjo_mom is not None else "n/a",
+        "audusd_ret": format_percent(audusd_mom) if audusd_mom is not None else "n/a",
+        "dxy_ret": format_percent(dxy_mom) if dxy_mom is not None else "n/a",
+        "gold_ret": format_percent(gold_mom) if gold_mom is not None else "n/a",
+        "wti_ret": format_percent(wti_mom) if wti_mom is not None else "n/a",
+        "brent_ret": format_percent(brent_mom) if brent_mom is not None else "n/a",
         "iron_ret": format_percent(iron_mom) if iron_mom is not None else "n/a",
         "para_bond": bond_para,
         "para_equities": equity_para,
@@ -244,35 +292,48 @@ def run(month: str, markets: str, outputs: str, lookback: int = DEFAULT_LOOKBACK
         write_text(report_dir / "monthly_commentary.md", md_content)
 
     # Excel workbook
+
+    def _df_diag(name, df):
+        print(f"[DIAG] {name}: shape={df.shape}")
+        print(df.head())
+        print(df.tail())
+        if df.empty or df.isna().all().all():
+            print(f"[WARNING] {name} is empty or all-NaN!")
+
     sheets: dict[str, pd.DataFrame] = {}
     rates_df = pd.concat([
         monthly_last(market_data["us"]["ten_year"]).rename("US 10y"),
         monthly_last(market_data["au"].get("ten_year")).rename("AU 10y") if "au" in market_data else None,
     ], axis=1)
+    _df_diag("Rates", rates_df)
     sheets["Rates"] = rates_df
 
     cpi_df = pd.concat([
         us_cpi_yoy.rename("US CPI YoY %"),
         au_cpi_series.rename("AU CPI YoY %") if not au_cpi_series.empty else None,
     ], axis=1)
+    _df_diag("CPI", cpi_df)
     sheets["CPI"] = cpi_df
 
     policy_df = pd.concat([
         fed_series.rename("Fed Funds %"),
         rba_series.rename("RBA Cash %"),
     ], axis=1)
+    _df_diag("Policy", policy_df)
     sheets["Policy"] = policy_df
 
     equities_df = pd.concat([
         monthly_last(market_data["us"]["equity"]).rename("S&P 500"),
         monthly_last(market_data["au"].get("equity")).rename("ASX 200") if "au" in market_data else None,
     ], axis=1)
+    _df_diag("Equities", equities_df)
     sheets["Equities"] = equities_df
 
     fx_df = pd.concat([
         monthly_last(audusd_series).rename("AUDUSD"),
         monthly_last(dxy_series).rename("UUP"),
     ], axis=1)
+    _df_diag("FX", fx_df)
     sheets["FX"] = fx_df
 
     commodities_df = pd.concat([
@@ -281,6 +342,7 @@ def run(month: str, markets: str, outputs: str, lookback: int = DEFAULT_LOOKBACK
         monthly_last(brent_series).rename("Brent"),
         monthly_last(iron_series).rename("Iron Ore") if iron_series is not None else None,
     ], axis=1)
+    _df_diag("Commodities", commodities_df)
     sheets["Commodities"] = commodities_df
 
     workbook_commentary = "\n".join([

@@ -9,6 +9,10 @@ import yfinance as yf
 
 from ..utils.dates import MonthWindow, month_lookback_start
 from ..utils.io import cache_series
+from ..transforms.fill import ensure_datetime_index, month_last
+
+class LoaderEmptyError(Exception):
+    pass
 
 LOGGER = logging.getLogger(__name__)
 
@@ -28,12 +32,19 @@ def fetch_series(ticker: str, month: MonthWindow | str, lookback_months: int = 2
     try:
         df = yf.download(ticker, start=start.to_pydatetime(), end=end.to_pydatetime(), progress=False, auto_adjust=False)
         if df.empty:
-            raise ValueError("empty frame")
+            raise LoaderEmptyError(f"Yahoo loader: empty frame for {ticker}")
         series = df["Adj Close" if "Adj Close" in df.columns else "Close"]
-        series.index = pd.to_datetime(series.index)
+        series = ensure_datetime_index(series)
         series.name = ticker
         cache_series(series, f"yahoo_{ticker.replace('^', '').replace('=', '_')}")
-        return series
+        # Standardize to monthly last for equities/FX/commodities
+        monthly = month_last(series)
+        if monthly.empty or monthly.isna().all():
+            raise LoaderEmptyError(f"Yahoo loader: all-NaN for {ticker}")
+        return monthly
+    except LoaderEmptyError as exc:
+        LOGGER.warning("LoaderEmptyError: %s", exc)
+        raise
     except Exception as exc:
         LOGGER.warning("Failed to fetch %s from Yahoo Finance: %s", ticker, exc)
         return pd.Series(dtype=float, name=ticker)

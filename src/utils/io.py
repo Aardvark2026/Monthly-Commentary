@@ -69,10 +69,15 @@ def write_text(path: Path, text: str) -> None:
 
 
 def write_excel(path: Path, sheets: dict[str, pd.DataFrame], commentary: str) -> None:
+    def safe_df(df):
+        # Replace NaNs with 'n/a', keep number formatting for numeric columns
+        return df.copy().where(df.notna(), other="n/a")
+
     ensure_directory(path.parent)
     with pd.ExcelWriter(path, engine="openpyxl") as writer:
         for sheet, df in sheets.items():
-            df.to_excel(writer, sheet_name=sheet, index=True)
+            df_out = safe_df(df)
+            df_out.to_excel(writer, sheet_name=sheet, index=True)
         comment_df = pd.DataFrame({"Commentary": commentary.splitlines()})
         comment_df.to_excel(writer, sheet_name="Commentary", index=False)
 

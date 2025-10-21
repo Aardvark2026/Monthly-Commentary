@@ -5,6 +5,7 @@ import pandas as pd
 import requests
 
 from ..utils.io import cache_series
+from ..transforms.fill import ensure_datetime_index, month_last
 
 RBA_CASH_URL = "https://www.rba.gov.au/statistics/cash-rate.csv"
 RBA_10Y_URL = "https://www.rba.gov.au/statistics/tables/csv/f16.1-data.csv"
@@ -60,8 +61,10 @@ def au_government_10y_series():
             return None
         series = pd.Series(df[value_cols[0]].values, index=df[first_col], name="AU10Y")
         series = series.astype(float).dropna()
-        cache_series(series, "rba_au10y")
-        return series
+        series = ensure_datetime_index(series)
+        monthly = month_last(series)
+        cache_series(monthly, "rba_au10y_monthly")
+        return monthly
     except Exception as exc:
         LOGGER.warning("Failed to parse RBA 10y yields: %s", exc)
         return None

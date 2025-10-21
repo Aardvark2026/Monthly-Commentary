@@ -1,10 +1,10 @@
 # Monthly Commentary — 2025-09
 
 ## Government Bond Yields (10-Year)
-- **US 10y:** n/a% (was little changed n/a% MoM; from n/a%)
+- **US 10y:** 0.41% (fell -3.29% MoM; from 0.43%)
 - **AU 10y:** n/a% (was little changed n/a% MoM; from n/a%)
 
-US 10-year yields was little changed to n/a, a n/a move on the month, while Australian 10-year yields was little changed to n/a (n/a).
+US 10-year yields fell to 0.41%, a -3.29% move on the month, while Australian 10-year yields was little changed to n/a (n/a).
 
 ## Inflation (CPI YoY)
 - **US CPI YoY:** 2.94%

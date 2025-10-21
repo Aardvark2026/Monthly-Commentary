@@ -8,26 +8,31 @@ import requests
 
 from .yahoo import fetch_series
 from ..utils.io import cache_series
+from ..transforms.fill import month_last, mom_pct
 
 LOGGER = logging.getLogger(__name__)
 
 
 def load_gold(month, lookback):
-    return fetch_series("GC=F", month, lookback)
+    s = fetch_series("GC=F", month, lookback)
+    return month_last(s)
 
 
 def load_wti(month, lookback):
-    return fetch_series("CL=F", month, lookback)
+    s = fetch_series("CL=F", month, lookback)
+    return month_last(s)
 
 
 def load_brent(month, lookback):
-    return fetch_series("BZ=F", month, lookback)
+    s = fetch_series("BZ=F", month, lookback)
+    return month_last(s)
 
 
 def load_iron_ore(month, lookback, candidates: list[str], te_series: str | None):
     for ticker in candidates:
         try:
             s = fetch_series(ticker, month, lookback)
+            s = month_last(s)
             if not s.dropna().empty:
                 s.name = "IRONORE"
                 return s
@@ -44,6 +49,7 @@ def load_iron_ore(month, lookback, candidates: list[str], te_series: str | None)
             if "Date" in df.columns and "Value" in df.columns:
                 series = pd.Series(df["Value"].values, index=pd.to_datetime(df["Date"]), name="IRONORE")
                 series = series.sort_index()
+                series = month_last(series)
                 cache_series(series, "te_ironore")
                 return series
         except Exception as exc:
