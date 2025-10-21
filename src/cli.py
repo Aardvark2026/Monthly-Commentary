@@ -36,7 +36,8 @@ from .utils.series import last_value, monthly_last, to_series
 
 LOGGER = logging.getLogger("monthly_commentary")
 ROOT = Path(__file__).resolve().parents[1]
-PROJECT_ROOT = ROOT.parent
+# ROOT points at the repository root (../.. from this file). PROJECT_ROOT should be the repo root.
+PROJECT_ROOT = ROOT
 TEMPLATES = ROOT / "templates"
 CONFIG_PATH = PROJECT_ROOT / "config" / "markets.yml"
 DEFAULT_LOOKBACK_MONTHS = 24
