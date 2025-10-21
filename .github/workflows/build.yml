@@ -38,7 +38,11 @@ jobs:
           from: ${{ secrets.FROM_EMAIL }}
           to: ${{ secrets.RECIPIENT_EMAIL }}
           subject: Monthly Commentary Report
-          message: Please find attached the latest monthly commentary report.
+          secure: false
+          nodemailerlog: true
+          html_body: |
+            <p>Hi team,</p><p>Attached are the monthly outputs.</p>
+            <p>Report path: <code>${{ env.REPORT_DIR }}</code></p>
           attachments: |
             ${{ env.REPORT_DIR }}/monthly_commentary.md
             ${{ env.REPORT_DIR }}/dashboard.xlsx
