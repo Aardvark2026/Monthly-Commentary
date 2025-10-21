@@ -1,0 +1,39 @@
+# Monthly Commentary — {{ month }}
+
+## Government Bond Yields (10-Year)
+- **US 10y:** {{ us_10y.end }}% ({{ us_10y.direction }} {{ us_10y.mom_pct }}% MoM; from {{ us_10y.start }}%)
+- **AU 10y:** {{ au_10y.end }}% ({{ au_10y.direction }} {{ au_10y.mom_pct }}% MoM; from {{ au_10y.start }}%)
+
+{{ para_bond }}
+
+## Inflation (CPI YoY)
+- **US CPI YoY:** {{ us_cpi_yoy }}%
+- **AU CPI YoY:** {{ au_cpi_yoy }}%
+
+{{ para_cpi }}
+
+## Policy
+- **Fed Funds:** {{ fed_last }}%
+- **RBA Cash Rate:** {{ rba_last }}%
+
+{{ para_policy }}
+
+## Equities
+- **S&P 500 (MoM):** {{ spx_ret }}%
+- **ASX 200 (MoM):** {{ axjo_ret }}%
+
+{{ para_equities }}
+
+## FX
+- **AUDUSD (MoM):** {{ audusd_ret }}%
+- **DXY proxy (UUP) (MoM):** {{ dxy_ret }}%
+
+{{ para_fx }}
+
+## Commodities
+- **Gold (MoM):** {{ gold_ret }}%
+- **WTI (MoM):** {{ wti_ret }}%
+- **Brent (MoM):** {{ brent_ret }}%
+- **Iron Ore (MoM):** {{ iron_ret }}
+
+{{ para_cmdty }}

@@ -1,0 +1,27 @@
+markets:
+  - code: us
+    name: United States
+    ten_year_ticker: "^TNX"         # divide by 10 to get %
+    equity_ticker: "^GSPC"
+    cpi_source: "FRED:CPIAUCSL"     # YoY computed
+    policy_source: "FRED:FEDFUNDS"  # Fed funds rate (upper target acceptable)
+  - code: au
+    name: Australia
+    ten_year_ticker: "^AU10Y"       # fallback RBA if missing
+    equity_ticker: "^AXJO"
+    cpi_source: "RBA/ABS"
+    policy_source: "RBA:CASHRATE"
+
+fx:
+  audusd: "AUDUSD=X"
+  dxy_proxy: "UUP"
+
+commodities:
+  gold: "GC=F"
+  wti: "CL=F"
+  brent: "BZ=F"
+  iron_ore_candidates:
+    - "FEF=F"        # SGX TSI 62% CFR China futures (if available on Yahoo)
+    - "IRON_ORE"     # placeholder variants; try/except each
+    - "TIO"          # placeholder
+  iron_ore_tradingeconomics_series: "IRONORE"  # use if TE_API_KEY provided
